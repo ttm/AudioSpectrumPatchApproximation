@@ -1,6 +1,6 @@
 """
 ASPA - AudioSpectrumPatchApproximation.py
-	Time-frequency 2D sparse code dictionary learning and approximation in Python
+    Time-frequency 2D sparse code dictionary learning and approximation in Python
 
 https://github.com/bregmanstudio/Audio2DSparseApprox 
 
@@ -28,15 +28,15 @@ from sklearn.decomposition import MiniBatchDictionaryLearning
 from sklearn.feature_extraction.image import extract_patches_2d
 from sklearn.feature_extraction.image import reconstruct_from_patches_2d
 from sklearn.decomposition import ProjectedGradientNMF
-from skimage.filter import gabor_kernel
+from skimage.filters import gabor_kernel
 import bregman.suite as br 
 import pdb
 
 class SparseApproxSpectrum(object):
     """class for 2D patch analysis of audio files
     initialization:
-    	patch_size - size of time-frequency 2D patches in spectrogram units (freq,time) [(12,12)]
-    	max_samples - if num audio patches exceeds this threshold, randomly sample spectrum [1000000]
+        patch_size - size of time-frequency 2D patches in spectrogram units (freq,time) [(12,12)]
+        max_samples - if num audio patches exceeds this threshold, randomly sample spectrum [1000000]
         **omp_args - keyword arguments to OrthogonalMatchingPursuit(...) [None]
     """
     def __init__(self, patch_size=(12,12), max_samples=1000000, **omp_args):
@@ -50,7 +50,7 @@ class SparseApproxSpectrum(object):
         self.log_amplitude=False
 
     def _extract_data_patches(self, X, zscore, log_amplitude):
-    	"utility method for converting spectrogram data to 2D patches "
+        "utility method for converting spectrogram data to 2D patches "
         self.zscore=zscore
         self.log_amplitude=log_amplitude
         self.X = X
@@ -60,7 +60,7 @@ class SparseApproxSpectrum(object):
         data = data.reshape(data.shape[0], -1)
         if len(data)>self.max_samples:
             data = np.random.permutation(data)[:self.max_samples]
-        print data.shape
+        print(data.shape)
         if self.zscore:
             self.mn = np.mean(data, axis=0) 
             self.std = np.std(data, axis=0)
@@ -69,7 +69,7 @@ class SparseApproxSpectrum(object):
         self.data = data
 
     def make_gabor_field(self, X, zscore=True, log_amplitude=True, thetas=range(4), 
-    		sigmas=(1,3), frequencies=(0.05, 0.25)) :
+            sigmas=(1,3), frequencies=(0.05, 0.25)) :
         """Given a spectrogram, prepare 2D patches and Gabor filter bank kernels
         inputs:
            X - spectrogram data (frequency x time)
@@ -108,10 +108,10 @@ class SparseApproxSpectrum(object):
         self.D = Bunch(components_ = np.vstack(self.kernels))
 
     def extract_codes(self, X, n_components=16, zscore=True, log_amplitude=True, **mbl_args):
-    	"""Given a spectrogram, learn a dictionary of 2D patch atoms from spectrogram data
+        """Given a spectrogram, learn a dictionary of 2D patch atoms from spectrogram data
         inputs:
             X - spectrogram data (frequency x time)
-    	    n_components - how many components to extract [16]
+            n_components - how many components to extract [16]
             zscore - whether to zscore the ensemble of 2D patches [True]
             log_amplitude - whether to apply log(1+X) scaling of spectrogram data [True]
             **mbl_args - keyword arguments for MiniBatchDictionaryLearning.fit(...) [None]
@@ -122,7 +122,7 @@ class SparseApproxSpectrum(object):
         self._extract_data_patches(X, zscore, log_amplitude)
         self.n_components = n_components
         self.dico = MiniBatchDictionaryLearning(n_components=self.n_components, **mbl_args)
-        print "Dictionary learning from data..."
+        print("Dictionary learning from data...")
         self.D = self.dico.fit(self.data)
 
     def plot_codes(self, cbar=False, show_axis=False, **kwargs):
@@ -145,7 +145,7 @@ class SparseApproxSpectrum(object):
         plt.subplots_adjust(0.08, 0.02, 0.92, 0.85, 0.08, 0.23)
 
     def extract_audio_dir_codes(self, dir_expr='/home/mkc/exp/FMRI/stimuli/Wav6sRamp/*.wav', **mbl_args):
-    	"""apply dictionary learning to entire directory of audio files (requires LOTS of RAM)
+        """apply dictionary learning to entire directory of audio files (requires LOTS of RAM)
             inputs:
                 **mbl_args - keyword arguments for MiniBatchDictionaryLearning.fit(...) [None]
         """
@@ -154,16 +154,16 @@ class SparseApproxSpectrum(object):
         self.D = extract_codes(self.X, **mbl_args)
 
     def _get_approximation_coefs(self, data, components):
-    	"""utility function to fit dictionary components to data
-    	inputs:
-    		data - spectrogram data (frqeuency x time) [None]
-    	  components - the dictionary components to fit to the data [None]
+        """utility function to fit dictionary components to data
+        inputs:
+            data - spectrogram data (frqeuency x time) [None]
+          components - the dictionary components to fit to the data [None]
         """
         w = np.array([self.omp.fit(components.T, d.T).coef_ for d in data])
         return w
 
     def reconstruct_spectrum(self, w=None, randomize=False):
-    	"""reconstruct by fitting current 2D dictionary to self.data 
+        """reconstruct by fitting current 2D dictionary to self.data 
         inputs:
             w - per-component reconstruction weights [None=calculate weights]
             randomize - randomly permute components after getting weights [False]
@@ -187,7 +187,7 @@ class SparseApproxSpectrum(object):
             self.X_hat = np.exp(self.X_hat) - 1.0 # invert log transform
 
     def reconstruct_individual_spectra(self, w=None, randomize=False, plotting=False, rectify=True, **kwargs):
-    	"""fit each dictionary component to self.data
+        """fit each dictionary component to self.data
         inputs:
             w - per-component reconstruction weights [None=calculate weights]
             randomize - randomly permute components after getting weights [False]
@@ -202,13 +202,13 @@ class SparseApproxSpectrum(object):
         w, components = self.w, self.D.components_
         self.X_hat_l = []
         for i in range(len(self.w.T)):
-	    	r=np.array((np.matrix(w)[:,i]*np.matrix(components)[i,:])).reshape(-1,*self.patch_size)
-        	X_hat = reconstruct_from_patches_2d(r, self.X.shape)
-                if self.log_amplitude:
-                    X_hat = np.exp(X_hat) - 1.0
-                if rectify: # half wave rectification
-                    X_hat[X_hat<0] = 0
-                self.X_hat_l.append(X_hat)
+            r=np.array((np.matrix(w)[:,i]*np.matrix(components)[i,:])).reshape(-1,*self.patch_size)
+            X_hat = reconstruct_from_patches_2d(r, self.X.shape)
+            if self.log_amplitude:
+                X_hat = np.exp(X_hat) - 1.0
+            if rectify: # half wave rectification
+                X_hat[X_hat<0] = 0
+            self.X_hat_l.append(X_hat)
         if plotting:
             self.plot_individual_spectra(**kwargs)
 
@@ -226,8 +226,8 @@ class SparseApproxSpectrum(object):
 class SparseApproxSpectrumNonNegative(SparseApproxSpectrum):
     """Non-negative sparse dictionary learning from 2D spectrogram patches 
     initialization:
-    	patch_size=(12,12) - size of time-frequency 2D patches in spectrogram units (freq,time)
-    	max_samples=1000000 - if num audio patches exceeds this threshold, randomly sample spectrum
+        patch_size=(12,12) - size of time-frequency 2D patches in spectrogram units (freq,time)
+        max_samples=1000000 - if num audio patches exceeds this threshold, randomly sample spectrum
     """
     def __init__(self, patch_size=(12,12), max_samples=1000000):
         self.patch_size = patch_size
@@ -239,7 +239,7 @@ class SparseApproxSpectrumNonNegative(SparseApproxSpectrum):
         self.log_amplitude=False
 
     def extract_codes(self, X, n_components=16, log_amplitude=True, **nmf_args):
-    	"""Given a spectrogram, learn a dictionary of 2D patch atoms from spectrogram data
+        """Given a spectrogram, learn a dictionary of 2D patch atoms from spectrogram data
         inputs:
             X - spectrogram data (frequency x time)
             n_components - how many components to extract [16]
@@ -255,13 +255,13 @@ class SparseApproxSpectrumNonNegative(SparseApproxSpectrum):
         nmf_args.setdefault('sparseness','components')
         nmf_args.setdefault('init','nndsvd')
         nmf_args.setdefault('beta',0.5)
-        print "NMF..."
+        print("NMF...")
         self.model = ProjectedGradientNMF(n_components=self.n_components, **nmf_args)
         self.model.fit(self.data)
         self.D = self.model
 
     def reconstruct_spectrum(self, w=None, randomize=False):
-    	"reconstruct by fitting current NMF 2D dictionary to self.data"
+        "reconstruct by fitting current NMF 2D dictionary to self.data"
         if w is None:
             self.w = self.model.transform(self.data)
             w = self.w
@@ -270,8 +270,8 @@ class SparseApproxSpectrumNonNegative(SparseApproxSpectrum):
 class SparseApproxSpectrumPLCA2D(SparseApproxSpectrum):
     """PLCA2D sparse dictionary learning from 2D spectrogram patches 
     initialization:
-    	patch_size=(12,12) - size of time-frequency 2D patches in spectrogram units (freq,time)
-    	max_samples=1000000 - if num audio patches exceeds this threshold, randomly sample spectrum
+        patch_size=(12,12) - size of time-frequency 2D patches in spectrogram units (freq,time)
+        max_samples=1000000 - if num audio patches exceeds this threshold, randomly sample spectrum
     """
     def __init__(self, patch_size=(12,12), max_samples=1000000):
         self.patch_size = patch_size
@@ -285,7 +285,7 @@ class SparseApproxSpectrumPLCA2D(SparseApproxSpectrum):
         self.X_hat=None
 
     def extract_codes(self, F, n_components=16, log_amplitude=True, **nmf_args):
-    	"""Given a spectrogram, learn a dictionary of 2D patch atoms from spectrogram data
+        """Given a spectrogram, learn a dictionary of 2D patch atoms from spectrogram data
         inputs:
             F - feature class with spectrogram data (frequency x time)
             n_components - how many components to extract [16]
@@ -319,7 +319,7 @@ class SparseApproxSpectrumPLCA2D(SparseApproxSpectrum):
         self.patch_size = patch_size
 
     def reconstruct_individual_spectra(self, w=None, randomize=False):
-    	"reconstruct by fitting current NMF 2D dictionary to self.data"
+        "reconstruct by fitting current NMF 2D dictionary to self.data"
         w = w if w is not None else self.w
         self.X_hat_l = self.F.invert_components(br.SIPLCA2, w, self.z, self.h)
         if self.log_amplitude:
